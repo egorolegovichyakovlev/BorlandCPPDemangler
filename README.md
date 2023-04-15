@@ -8,4 +8,6 @@
 
 ![Borland C++ Demangler Script Console Output](borland_demangler_console.png "Borland C++ Demangler Script Console Output")
 
+![Borland C++ Demangler Script Console Output 2](borland_demangler_console_2.png "Borland C++ Demangler Script Console Output 2")
+
 To use, open `Script Manager` and add this directory to `Script Directories` list. Then choose `BorlandCPPDemangler.java` and run it.
