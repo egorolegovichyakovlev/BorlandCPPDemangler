@@ -44,12 +44,20 @@ import ghidra.program.model.symbol.SourceType;
 import ghidra.program.model.data.*;
 import ghidra.program.util.*;
 import ghidra.util.exception.*;
+import ghidra.program.model.mem.MemoryAccessException;
+
+import ghidra.program.util.string.StringSearcher;
+import ghidra.program.util.string.FoundStringCallback;
+import ghidra.program.util.string.FoundString;
+import ghidra.program.model.address.AddressSetView;
 
 import ghidra.app.services.CodeViewerService;
 
 import java.lang.String;
 import java.lang.Character;
 import java.util.ArrayList;
+
+import java.nio.ByteBuffer;
 
 import java.awt.*;
 
@@ -195,6 +203,17 @@ public class BorlandCPPDemangler extends GhidraScript {
         });
 
 
+        JButton findRTTIFunctionsButton = new JButton("Check strings for RTTI function names");
+        findRTTIFunctionsButton.setAlignmentX(findRTTIFunctionsButton.CENTER_ALIGNMENT);
+        findRTTIFunctionsButton.setAlignmentY(findRTTIFunctionsButton.CENTER_ALIGNMENT);
+        findRTTIFunctionsButton.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent arg0) {
+                searchStringsForRTTI();
+            }
+        });
+
+
         JCheckBox checkExtParams = new JCheckBox("Print extended parameters");
         checkExtParams.setAlignmentX(checkExtParams.CENTER_ALIGNMENT);
         checkExtParams.setAlignmentY(checkExtParams.CENTER_ALIGNMENT);
@@ -233,6 +252,7 @@ public class BorlandCPPDemangler extends GhidraScript {
         innerBox.add(Box.createVerticalGlue());
         innerBox.add(demangleSingleFunctionButton);
         innerBox.add(demangleAllFunctionsButton);
+        innerBox.add(findRTTIFunctionsButton);
         innerBox.add(checkExtParams);
         innerBox.add(checkNoModify);
         innerBox.add(checkShowVerbose);
@@ -245,6 +265,48 @@ public class BorlandCPPDemangler extends GhidraScript {
         mainFrame.setVisible(true);
 
     }
+
+    private void searchStringsForRTTI() {
+        int RTTITransaction = currentProgram.startTransaction("Search strings for Borland function names");
+
+        StringSearcher searchForStrings = new StringSearcher(currentProgram, 5, 1, true, true);
+        AddressSetView searcherAddress = searchForStrings.search(null, callbackString, true, monitor);
+
+        currentProgram.endTransaction(RTTITransaction, true);
+    }
+
+    private FoundStringCallback callbackString = new FoundStringCallback() {
+        @Override
+        public void stringFound(FoundString foundString) {
+            String gotString = foundString.getString(currentProgram.getMemory());
+            Address gotAddress = foundString.getAddress();
+            try {
+                Address funcPointerAddress = currentProgram.getAddressFactory().getDefaultAddressSpace().getAddress(gotAddress.getOffset() - 8);
+                Address funcAddress = currentProgram.getAddressFactory().getDefaultAddressSpace().getAddress(currentProgram.getMemory().getInt(funcPointerAddress));
+                Address checkMagicAddress = currentProgram.getAddressFactory().getDefaultAddressSpace().getAddress(gotAddress.getOffset() - 44);
+                Function foundFunc = currentProgram.getFunctionManager().getFunctionAt(funcAddress);
+                int foundIsMagic = currentProgram.getMemory().getInt(checkMagicAddress);
+                if (foundIsMagic == 0x00300003) {
+                    if (NOMODIFY == false) {
+                        String filteredName = gotString.replace(" ", "");
+                        if (foundFunc == null) {
+                            foundFunc = createFunction(funcAddress, filteredName);
+                        } else {
+                            try {
+                                foundFunc.setName(filteredName, SourceType.IMPORTED);
+                            } catch (DuplicateNameException exc) {
+                            } catch (InvalidInputException exc) {
+                                printerr("Function name could not be set (illegal characters): " + filteredName);
+                            }
+                        }
+                    }
+
+                    println("Found function \"" + gotString + "\" at " + funcAddress.toString());
+                }
+
+            } catch (MemoryAccessException exc) {}
+        }
+    };
 
     private void demangleAll() {
         int demangleTransaction = currentProgram.startTransaction("Demangle multiple Borland functions");
