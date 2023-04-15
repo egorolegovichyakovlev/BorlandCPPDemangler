@@ -352,7 +352,7 @@ public class BorlandCPPDemangler extends GhidraScript {
 
 
             try {
-                borlandFun.setName(filteredFuncName, SourceType.ANALYSIS);
+                borlandFun.setName(filteredFuncName, SourceType.IMPORTED);
             } catch (DuplicateNameException exc) {
             } catch (InvalidInputException exc) {
                 printerr("Function name could not be set (illegal characters): " + filteredFuncName);
@@ -378,7 +378,7 @@ public class BorlandCPPDemangler extends GhidraScript {
         try {
             DataType undefData = new Undefined4DataType();
             if (retTypeData.isEquivalent(undefData) == false) {
-                retTypeVariable.setDataType(retTypeData, SourceType.ANALYSIS);
+                retTypeVariable.setDataType(retTypeData, SourceType.IMPORTED);
             }
 
         } catch (InvalidInputException exc) {
@@ -420,7 +420,7 @@ public class BorlandCPPDemangler extends GhidraScript {
                     localParamsNew,
                     Function.FunctionUpdateType.CUSTOM_STORAGE,
                     false,
-                    SourceType.ANALYSIS
+                    SourceType.IMPORTED
                 );
 
             } catch (InvalidInputException exc) {
