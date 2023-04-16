@@ -285,9 +285,13 @@ public class BorlandCPPDemangler extends GhidraScript {
                 Address funcPointerAddress = currentProgram.getAddressFactory().getDefaultAddressSpace().getAddress(gotAddress.getOffset() - 8);
                 Address funcAddress = currentProgram.getAddressFactory().getDefaultAddressSpace().getAddress(currentProgram.getMemory().getInt(funcPointerAddress));
                 Address checkMagicAddress = currentProgram.getAddressFactory().getDefaultAddressSpace().getAddress(gotAddress.getOffset() - 44);
+                Address checkMagicAddress2 = currentProgram.getAddressFactory().getDefaultAddressSpace().getAddress(gotAddress.getOffset() - 20);
+                Address checkMagicAddress3 = currentProgram.getAddressFactory().getDefaultAddressSpace().getAddress(gotAddress.getOffset() - 24);
                 Function foundFunc = currentProgram.getFunctionManager().getFunctionAt(funcAddress);
                 int foundIsMagic = currentProgram.getMemory().getInt(checkMagicAddress);
-                if (foundIsMagic == 0x00300003) {
+                int foundIsMagic2 = currentProgram.getMemory().getInt(checkMagicAddress2);
+                int foundIsMagic3 = currentProgram.getMemory().getInt(checkMagicAddress3);
+                if (foundIsMagic == 0x00300003 && foundIsMagic2 == 0x0 && foundIsMagic3 == 0x0) {
                     if (NOMODIFY == false) {
                         String filteredName = gotString.replace(" ", "");
 
