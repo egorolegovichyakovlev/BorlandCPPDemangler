@@ -292,11 +292,14 @@ public class BorlandCPPDemangler extends GhidraScript {
                         if (foundFunc == null) {
                             foundFunc = createFunction(funcAddress, filteredName);
                         } else {
-                            try {
-                                foundFunc.setName(filteredName, SourceType.IMPORTED);
-                            } catch (DuplicateNameException exc) {
-                            } catch (InvalidInputException exc) {
-                                printerr("Function name could not be set (illegal characters): " + filteredName);
+
+                            if (foundFunc.getName().startsWith(filteredName) == false) {
+                                try {
+                                    foundFunc.setName(filteredName, SourceType.IMPORTED);
+                                } catch (DuplicateNameException exc) {
+                                } catch (InvalidInputException exc) {
+                                    printerr("Function name could not be set (illegal characters): " + filteredName);
+                                }
                             }
                         }
                     }
