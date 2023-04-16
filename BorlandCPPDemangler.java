@@ -45,6 +45,7 @@ import ghidra.program.model.data.*;
 import ghidra.program.util.*;
 import ghidra.util.exception.*;
 import ghidra.program.model.mem.MemoryAccessException;
+import ghidra.app.cmd.function.CreateFunctionCmd;
 
 import ghidra.program.util.string.StringSearcher;
 import ghidra.program.util.string.FoundStringCallback;
@@ -289,9 +290,16 @@ public class BorlandCPPDemangler extends GhidraScript {
                 if (foundIsMagic == 0x00300003) {
                     if (NOMODIFY == false) {
                         String filteredName = gotString.replace(" ", "");
+
                         if (foundFunc == null) {
-                            foundFunc = createFunction(funcAddress, filteredName);
-                        } else {
+                            CreateFunctionCmd funcmd = new CreateFunctionCmd(funcAddress);
+
+                            funcmd.applyTo(currentProgram, monitor);
+
+                            foundFunc = currentProgram.getFunctionManager().getFunctionAt(funcAddress);
+                        }
+
+                        if (foundFunc != null) {
 
                             if (foundFunc.getName().startsWith(filteredName) == false) {
                                 try {
