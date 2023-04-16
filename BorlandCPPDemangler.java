@@ -33,6 +33,7 @@ import docking.*;
 import ghidra.app.context.ProgramSymbolActionContext;
 import ghidra.app.script.GhidraScript;
 import ghidra.program.model.address.Address;
+import ghidra.program.model.address.AddressSet;
 import ghidra.program.model.listing.Data;
 import ghidra.program.model.listing.Function;
 import ghidra.program.model.listing.FunctionIterator;
@@ -204,13 +205,13 @@ public class BorlandCPPDemangler extends GhidraScript {
         });
 
 
-        JButton findRTTIFunctionsButton = new JButton("Check strings for RTTI function names");
+        JButton findRTTIFunctionsButton = new JButton("Find RTTI function names");
         findRTTIFunctionsButton.setAlignmentX(findRTTIFunctionsButton.CENTER_ALIGNMENT);
         findRTTIFunctionsButton.setAlignmentY(findRTTIFunctionsButton.CENTER_ALIGNMENT);
         findRTTIFunctionsButton.addActionListener(new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent arg0) {
-                searchStringsForRTTI();
+                searchForRTTI();
             }
         });
 
@@ -267,11 +268,41 @@ public class BorlandCPPDemangler extends GhidraScript {
 
     }
 
-    private void searchStringsForRTTI() {
-        int RTTITransaction = currentProgram.startTransaction("Search strings for Borland function names");
+    private void searchForRTTI() {
+        int RTTITransaction = currentProgram.startTransaction("Search for Borland RTTI function names");
 
-        StringSearcher searchForStrings = new StringSearcher(currentProgram, 1, 1, true, true);
-        AddressSetView searcherAddress = searchForStrings.search(null, callbackString, true, monitor);
+        byte[] magicNum = new byte[] {0x3, 0x0, 0x30, 0x0};
+
+        Address foundMagic1 = currentProgram.getMemory().findBytes(currentProgram.getMinAddress(), magicNum, null, true, monitor);
+
+        if (foundMagic1 == null) {
+            printerr("No RTTI symbols found");
+        }
+
+        while (foundMagic1 != null) {
+            Address checkMagicAddress = currentProgram.getAddressFactory().getDefaultAddressSpace().getAddress(foundMagic1.getOffset() + 20);
+            Address checkMagicAddress2 = currentProgram.getAddressFactory().getDefaultAddressSpace().getAddress(foundMagic1.getOffset() + 24);
+
+            Address foundMagicString = currentProgram.getAddressFactory().getDefaultAddressSpace().getAddress(foundMagic1.getOffset() + 44);
+            Address foundMagicStringEnd = currentProgram.getMemory().findBytes(foundMagicString, new byte[] {0x0}, null, true, monitor);
+
+            try {
+                int foundIsMagic = currentProgram.getMemory().getInt(checkMagicAddress);
+                int foundIsMagic2 = currentProgram.getMemory().getInt(checkMagicAddress2);
+
+                if (foundIsMagic == 0x0 && foundIsMagic2 == 0x0) {
+                    StringSearcher searchForStrings = new StringSearcher(currentProgram, 1, 1, true, true);
+                    AddressSetView searcherAddress = searchForStrings.search(new AddressSet(foundMagicString, foundMagicStringEnd), callbackString, true, monitor);
+                }
+            } catch (MemoryAccessException exc) {}
+
+            if (foundMagicStringEnd == null) {
+                foundMagic1 = currentProgram.getMemory().findBytes(foundMagicString, magicNum, null, true, monitor);
+            } else {
+                foundMagic1 = currentProgram.getMemory().findBytes(foundMagicStringEnd, magicNum, null, true, monitor);
+            }
+
+        }
 
         currentProgram.endTransaction(RTTITransaction, true);
     }
@@ -284,40 +315,33 @@ public class BorlandCPPDemangler extends GhidraScript {
             try {
                 Address funcPointerAddress = currentProgram.getAddressFactory().getDefaultAddressSpace().getAddress(gotAddress.getOffset() - 8);
                 Address funcAddress = currentProgram.getAddressFactory().getDefaultAddressSpace().getAddress(currentProgram.getMemory().getInt(funcPointerAddress));
-                Address checkMagicAddress = currentProgram.getAddressFactory().getDefaultAddressSpace().getAddress(gotAddress.getOffset() - 44);
-                Address checkMagicAddress2 = currentProgram.getAddressFactory().getDefaultAddressSpace().getAddress(gotAddress.getOffset() - 20);
-                Address checkMagicAddress3 = currentProgram.getAddressFactory().getDefaultAddressSpace().getAddress(gotAddress.getOffset() - 24);
                 Function foundFunc = currentProgram.getFunctionManager().getFunctionAt(funcAddress);
-                int foundIsMagic = currentProgram.getMemory().getInt(checkMagicAddress);
-                int foundIsMagic2 = currentProgram.getMemory().getInt(checkMagicAddress2);
-                int foundIsMagic3 = currentProgram.getMemory().getInt(checkMagicAddress3);
-                if (foundIsMagic == 0x00300003 && foundIsMagic2 == 0x0 && foundIsMagic3 == 0x0) {
-                    if (NOMODIFY == false) {
-                        String filteredName = gotString.replace(" ", "");
 
-                        if (foundFunc == null) {
-                            CreateFunctionCmd funcmd = new CreateFunctionCmd(funcAddress);
+                if (NOMODIFY == false) {
+                    String filteredName = gotString.replace(" ", "");
 
-                            funcmd.applyTo(currentProgram, monitor);
+                    if (foundFunc == null) {
+                        CreateFunctionCmd funcmd = new CreateFunctionCmd(funcAddress);
 
-                            foundFunc = currentProgram.getFunctionManager().getFunctionAt(funcAddress);
-                        }
+                        funcmd.applyTo(currentProgram, monitor);
 
-                        if (foundFunc != null) {
+                        foundFunc = currentProgram.getFunctionManager().getFunctionAt(funcAddress);
+                    }
 
-                            if (foundFunc.getName().contains(filteredName) == false) {
-                                try {
-                                    foundFunc.setName(filteredName, SourceType.IMPORTED);
-                                } catch (DuplicateNameException exc) {
-                                } catch (InvalidInputException exc) {
-                                    printerr("Function name could not be set (illegal characters): " + filteredName);
-                                }
+                    if (foundFunc != null) {
+
+                        if (foundFunc.getName().contains(filteredName) == false) {
+                            try {
+                                foundFunc.setName(filteredName, SourceType.IMPORTED);
+                            } catch (DuplicateNameException exc) {
+                            } catch (InvalidInputException exc) {
+                                printerr("Function name could not be set (illegal characters): " + filteredName);
                             }
                         }
                     }
-
-                    println("Found function \"" + gotString + "\" at " + funcAddress.toString());
                 }
+
+                println("Found function \"" + gotString + "\" at 0x" + funcAddress.toString());
 
             } catch (MemoryAccessException exc) {}
         }
