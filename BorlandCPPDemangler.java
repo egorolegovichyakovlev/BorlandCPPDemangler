@@ -301,7 +301,7 @@ public class BorlandCPPDemangler extends GhidraScript {
 
                         if (foundFunc != null) {
 
-                            if (foundFunc.getName().startsWith(filteredName) == false) {
+                            if (foundFunc.getName().contains(filteredName) == false) {
                                 try {
                                     foundFunc.setName(filteredName, SourceType.IMPORTED);
                                 } catch (DuplicateNameException exc) {
