@@ -269,7 +269,7 @@ public class BorlandCPPDemangler extends GhidraScript {
     private void searchStringsForRTTI() {
         int RTTITransaction = currentProgram.startTransaction("Search strings for Borland function names");
 
-        StringSearcher searchForStrings = new StringSearcher(currentProgram, 5, 1, true, true);
+        StringSearcher searchForStrings = new StringSearcher(currentProgram, 1, 1, true, true);
         AddressSetView searcherAddress = searchForStrings.search(null, callbackString, true, monitor);
 
         currentProgram.endTransaction(RTTITransaction, true);
