@@ -75,6 +75,7 @@ public class BorlandCPPDemangler extends GhidraScript {
 
     private static boolean EXTRA_PARAMS = false;
     private static boolean NOMODIFY = false;
+    private static boolean ARGSDEMANGLE = false;
     private static boolean DEBUG_MSGS = false;
 
     enum SymbolKind {
@@ -179,7 +180,7 @@ public class BorlandCPPDemangler extends GhidraScript {
     @Override
     public void run() throws Exception {
         mainFrame = new JFrame("Borland C++ Function Demangler");
-        mainFrame.setMinimumSize(new Dimension(350, 200));
+        mainFrame.setMinimumSize(new Dimension(400, 250));
         mainFrame.setDefaultCloseOperation(WindowConstants.DISPOSE_ON_CLOSE);
 
         JPanel mainPanel = new JPanel();
@@ -239,6 +240,18 @@ public class BorlandCPPDemangler extends GhidraScript {
             }
         });
 
+        JCheckBox checkArgsDemangle = new JCheckBox("Demangle function arguments (may destroy your symbols)");
+        checkArgsDemangle.setAlignmentX(checkArgsDemangle.CENTER_ALIGNMENT);
+        checkArgsDemangle.setAlignmentY(checkArgsDemangle.CENTER_ALIGNMENT);
+        checkArgsDemangle.addActionListener(new ActionListener() {
+            @Override
+            public void actionPerformed(ActionEvent e) {
+                JCheckBox source = (JCheckBox)e.getSource();
+                ARGSDEMANGLE = source.isSelected();
+            }
+        });
+
+
         JCheckBox checkShowVerbose = new JCheckBox("Show verbose logs (lots of output)");
         checkShowVerbose.setAlignmentX(checkShowVerbose.CENTER_ALIGNMENT);
         checkShowVerbose.setAlignmentY(checkShowVerbose.CENTER_ALIGNMENT);
@@ -257,6 +270,7 @@ public class BorlandCPPDemangler extends GhidraScript {
         innerBox.add(findRTTIFunctionsButton);
         innerBox.add(checkExtParams);
         innerBox.add(checkNoModify);
+        innerBox.add(checkArgsDemangle);
         innerBox.add(checkShowVerbose);
         innerBox.add(Box.createVerticalGlue());
 
@@ -513,7 +527,7 @@ public class BorlandCPPDemangler extends GhidraScript {
         }
 
 
-        if (returnSuccess == true && NOMODIFY == false) {
+        if (returnSuccess == true && NOMODIFY == false && ARGSDEMANGLE == true) {
             try {
                 borlandFun.updateFunction(
                     funConvent,
